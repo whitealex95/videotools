@@ -132,8 +132,11 @@ export class Server {
     return this.json(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
   }
   async check() {
+    if (this._checking) return this.connected;
+    this._checking = true;
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 3000);
+    // Chrome asks for "local network access" permission on the first request to localhost; wait long enough for a click.
+    const timer = setTimeout(() => ctrl.abort(), 30000);
     try {
       const info = await this.json('/api/health', { signal: ctrl.signal });
       this.info = info;
@@ -142,7 +145,7 @@ export class Server {
     } catch (e) {
       this.info = null; this.connected = false;
       this.error = e.name === 'AbortError' ? 'timeout' : e.message;
-    } finally { clearTimeout(timer); }
+    } finally { clearTimeout(timer); this._checking = false; }
     document.dispatchEvent(new CustomEvent('vt:server', { detail: this }));
     return this.connected;
   }
@@ -286,7 +289,9 @@ export function initPage({ root = '../', active = '' } = {}) {
   document.body.prepend(header);
   document.body.append(buildDrawer(), buildServerDialog());
   document.addEventListener('vt:server', renderStatus);
-  server.check().then(() => { if (server.connected) jobsStore.start(); });
+  const connect = () => server.check().then(ok => { if (ok) jobsStore.start(); });
+  connect();
+  setInterval(() => { if (!server.connected) connect(); }, 10000);
   return { server };
 }
 
@@ -300,6 +305,9 @@ function renderStatus() {
   } else if (server.error === 'token required') {
     pill.classList.add('warn');
     pill.querySelector('.txt').textContent = 'server: token needed';
+  } else if (server.error === 'timeout') {
+    pill.classList.add('warn');
+    pill.querySelector('.txt').textContent = 'server: waiting (allow local network access?)';
   } else {
     pill.classList.add('off');
     pill.querySelector('.txt').textContent = 'no server · command mode';
