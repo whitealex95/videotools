@@ -36,8 +36,63 @@ for (const id of ['layout', 'size', 'gap', 'bg', 'cW', 'cH', 'aX', 'aY', 'aW', '
   $('#' + id).addEventListener('input', ev => { if (id === 'layout') onLayoutChange(); else if (['cW', 'cH', 'aX', 'aY', 'aW', 'bX', 'bY', 'bW'].includes(id)) readCustomInputs(); refresh(); });
 }
 $('#out').addEventListener('input', () => { state.outEdited = true; cmd.refresh(); });
-$('#orange').addEventListener('input', () => { state.otime = $('#orange').value / 1000 * duration(); $('#otime').value = fmtTime(state.otime); renderPreview(); });
-$('#otime').addEventListener('change', () => { const t = parseTime($('#otime').value); if (!isNaN(t)) { state.otime = clamp(t, 0, duration()); updateOutScrub(); renderPreview(); } });
+$('#orange').addEventListener('input', () => { state.otime = $('#orange').value / 1000 * duration(); $('#otime').value = fmtTime(state.otime); seekLive(); renderPreview(); });
+$('#otime').addEventListener('change', () => { const t = parseTime($('#otime').value); if (!isNaN(t)) { state.otime = clamp(t, 0, duration()); updateOutScrub(); seekLive(); renderPreview(); } });
+$('#oplay').onclick = toggleLive;
+document.addEventListener('keydown', e => {
+  if (e.code !== 'Space' || e.target.closest('input, select, textarea, button')) return;
+  e.preventDefault();
+  toggleLive();
+});
+
+// ---------- combined playback: both card videos play together and are drawn on the canvas ----------
+const live = { on: false };
+
+async function toggleLive() {
+  if (live.on) { stopLive(); return; }
+  if (!bothReady()) return;
+  const D = duration();
+  if (state.otime >= D - 0.02) state.otime = 0;
+  const btn = $('#oplay');
+  btn.disabled = true;
+  try {
+    await Promise.all([cards.a.scrub.prime(cards.a.start + state.otime), cards.b.scrub.prime(cards.b.start + state.otime)]);
+    const audio = $('#audio').value;
+    live.on = true;
+    btn.textContent = '❚❚';
+    await Promise.all([cards.a.scrub.play(cards.a.start + D, { onTick: liveTick }), cards.b.scrub.play(cards.b.start + D)]);
+    cards.a.scrub.video.muted = audio !== 'a';
+    cards.b.scrub.video.muted = audio !== 'b';
+  } catch (e) { toast(e.message, true); stopLive(); }
+  finally { btn.disabled = false; }
+}
+
+function liveTick() {
+  if (!live.on) return;
+  const va = cards.a.scrub.video, vb = cards.b.scrub.video;
+  const D = duration();
+  state.otime = clamp(va.currentTime - cards.a.start, 0, D);
+  const tb = cards.b.start + state.otime;
+  if (!vb.seeking && Math.abs(vb.currentTime - tb) > 0.06) vb.currentTime = tb;
+  updateOutScrub();
+  drawComposite(layout(), va, vb);
+  if (!cards.a.scrub.playing || !cards.b.scrub.playing || state.otime >= D - 0.01) stopLive();
+}
+
+function seekLive() {
+  if (!live.on) return;
+  cards.a.scrub.video.currentTime = cards.a.start + state.otime;
+  cards.b.scrub.video.currentTime = cards.b.start + state.otime;
+}
+
+function stopLive() {
+  if (live.on) state.otime = clamp(cards.a.scrub.video.currentTime - cards.a.start, 0, duration());
+  live.on = false;
+  for (const c of [cards.a, cards.b]) { c.scrub.stop(); c.scrub.video.muted = true; }
+  $('#oplay').textContent = '▶';
+  updateOutScrub();
+  renderPreview();
+}
 
 function makeCard(key, title) {
   const card = { key, mf: null, info: null, start: 0, end: null, label: '' };
@@ -66,6 +121,7 @@ function makeCard(key, title) {
     ),
   );
   card.scrub = new Scrubber(scrubHost, { width: 960 });
+  card.scrub.onStop = () => { if (live.on) stopLive(); };
   card.crop = new CropBox(card.scrub.wrap, { onChange: r => { fillCrop(card, r); refresh(); } });
   card.startEl.addEventListener('change', () => onStartChange(card));
   card.endEl.addEventListener('change', () => onEndChange(card));
@@ -95,6 +151,7 @@ function cardEnd(card) { return Math.min(card.end ?? Infinity, card.info?.durati
 function fillCrop(card, r) { if (r) [r.x, r.y, r.w, r.h].forEach((v, i) => { card.cropEls[i].value = v; }); }
 
 async function loadCard(card, mf, { start = null } = {}) {
+  stopLive();
   card.mf = mf; card.info = null;
   card.end = null; card.endEl.value = '';
   card.nameEl.textContent = mf.name;
@@ -238,6 +295,7 @@ function refresh() {
   updateOutScrub();
   cmd.refresh();
   exp.enabled = !!L;
+  $('#oplay').disabled = !L;
   renderPreview();
 }
 
@@ -266,13 +324,20 @@ const renderPreview = debounce(async () => {
   try {
     [ia, ib] = await Promise.all([frameImg(cards.a, cards.a.start + state.otime), frameImg(cards.b, cards.b.start + state.otime)]);
   } catch { /* draw what we have */ }
-  if (seq !== renderSeq) return;
-  canvas.width = L.W; canvas.height = L.H;
+  if (seq !== renderSeq || live.on) return;
+  drawComposite(L, ia, ib);
+}, 120);
+
+/* srcA/srcB are frame images or <video> elements. */
+function drawComposite(L, srcA, srcB) {
+  if (!L) return;
+  if (canvas.width !== L.W || canvas.height !== L.H) { canvas.width = L.W; canvas.height = L.H; }
   ctx.fillStyle = $('#bg').value; ctx.fillRect(0, 0, L.W, L.H);
-  const draw = (img, card, r, p) => {
-    if (!img) { ctx.fillStyle = '#333'; ctx.fillRect(p.x, p.y, p.w, p.h); return; }
-    const k = img.naturalWidth / card.info.video.width;
-    ctx.drawImage(img, r.x * k, r.y * k, r.w * k, r.h * k, p.x, p.y, p.w, p.h);
+  const draw = (src, card, r, p) => {
+    const sw = src?.naturalWidth || src?.videoWidth;
+    if (!sw) { ctx.fillStyle = '#333'; ctx.fillRect(p.x, p.y, p.w, p.h); return; }
+    const k = sw / card.info.video.width;
+    ctx.drawImage(src, r.x * k, r.y * k, r.w * k, r.h * k, p.x, p.y, p.w, p.h);
     if ($('#labels').checked && card.label.trim()) {
       const fs = Math.max(8, +$('#fontsize').value || 36);
       ctx.font = `${fs}px sans-serif`; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
@@ -281,9 +346,9 @@ const renderPreview = debounce(async () => {
       ctx.fillStyle = '#fff'; ctx.fillText(card.label.trim(), p.x + fs / 2, p.y + fs / 2);
     }
   };
-  draw(ia, cards.a, L.ra, L.pa);
-  draw(ib, cards.b, L.rb, L.pb);
-}, 120);
+  draw(srcA, cards.a, L.ra, L.pa);
+  draw(srcB, cards.b, L.rb, L.pb);
+}
 
 // dragging videos on the preview in custom mode
 let drag = null;

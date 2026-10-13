@@ -250,6 +250,20 @@ export class MediaFile {
   }
 }
 
+/* Returns a URL the browser can play for a server file that it could not decode (a 480p proxy made by ffmpeg). */
+export async function proxyUrl(mf, onProgress = null) {
+  if (!mf.isServer || !server.connected) throw new Error('The browser cannot play this file. Convert it to H.264 MP4 first (Convert tool).');
+  let r = await server.proxy(mf.path);
+  while (!r.ready) {
+    await new Promise(res => setTimeout(res, 1000));
+    const job = (await server.jobs()).find(j => j.id === r.job_id);
+    if (!job || job.status === 'failed' || job.status === 'cancelled') throw new Error(job?.error || 'proxy job vanished');
+    onProgress?.(job.progress || 0);
+    if (job.status === 'done') r = { ...r, ready: true };
+  }
+  return server.withToken(server.api(r.url));
+}
+
 export async function loadImage(url) {
   const img = new Image();
   img.decoding = 'async';
