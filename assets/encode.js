@@ -88,12 +88,13 @@ export class EncodePanel {
   }
 
   /* Filters applied to one video stream before encoding, in order: caller filters, scale, tone map, fps, pixel format. */
-  videoFilters(info, vf = [], { format = true } = {}) {
+  videoFilters(info, vf = [], { format = true, after = [] } = {}) {
     const o = this.opts, v = info?.video;
     const chain = [...vf];
     if (o.maxWidth) chain.push(`scale=min(${o.maxWidth}\\,iw):-2`);
     if (v?.hdr && o.tonemap !== 'off') chain.push(TONEMAP);
     if (o.fps) chain.push(`fps=${o.fps}`);
+    chain.push(...after);
     if (format) chain.push('format=yuv420p');
     return chain;
   }
@@ -131,14 +132,14 @@ export class EncodePanel {
   }
 
   /* Full ffmpeg argument list (after "ffmpeg") for one input to one output. */
-  buildArgs({ input, output, info, vf = [], ss = null, duration = null }) {
+  buildArgs({ input, output, info, vf = [], vfAfter = [], ss = null, duration = null }) {
     const args = ['-y'];
     if (ss != null && ss > 0) args.push('-ss', fmtSec(ss));
     args.push('-i', input);
     if (duration != null && duration > 0) args.push('-t', fmtSec(duration));
     args.push('-map', '0:v:0', '-map', '0:a:0?');
-    if (this.needsVideoEncode(info, { hasFilters: vf.length > 0 })) {
-      args.push('-vf', this.videoFilters(info, vf).join(','));
+    if (this.needsVideoEncode(info, { hasFilters: vf.length + vfAfter.length > 0 })) {
+      args.push('-vf', this.videoFilters(info, vf, { after: vfAfter }).join(','));
       args.push(...this.videoCodecArgs(info));
     } else {
       args.push('-c:v', 'copy');

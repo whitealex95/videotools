@@ -1,17 +1,20 @@
-import { $, $$, el, initPage, pickFiles, codecSummary, fmtTime, parseTime, CommandPanel, server, toast, MediaFile, even, clamp, debounce, loadImage, TONEMAP, round3, frameStepButtons, arrowKeyStep } from '../assets/common.js';
+import { $, el, initPage, pickFiles, codecSummary, fmtTime, parseTime, CommandPanel, server, toast, MediaFile, even, clamp, debounce, loadImage, TONEMAP, round3, frameStepButtons, arrowKeyStep } from '../assets/common.js';
 import { EncodePanel, fmtSec } from '../assets/encode.js';
 import { Scrubber } from '../assets/scrubber.js';
 import { CropBox } from '../assets/cropbox.js';
-import { ExportButton, exportComposite, drawLabel, drawText, textRect } from '../assets/browserexport.js';
+import { ExportButton, exportComposite, drawLabel } from '../assets/browserexport.js';
+import { TextOverlays } from '../assets/textoverlay.js';
 
 initPage({ root: '../', active: 'sidebyside' });
 
 const cards = { a: makeCard('a', 'A'), b: makeCard('b', 'B') };
 const custom = { W: 0, H: 0, a: { x: 0, y: 0, w: 0 }, b: { x: 0, y: 0, w: 0 } };
-const state = { outEdited: false, otime: 0, texts: [] };
+const state = { outEdited: false, otime: 0 };
 const canvas = $('#canvas');
 const ctx = canvas.getContext('2d');
 const enc = new EncodePanel($('#encode'), { onChange: () => { syncExt(); refresh(); } });
+const texts = new TextOverlays($('#texts'), $('#addText'), { onChange: () => refresh() });
+texts.getSize = () => layout();
 const cmd = new CommandPanel($('#cmd'));
 cmd.getCommands = () => (bothReady() ? [buildArgs()] : []);
 cmd.getJobs = () => (bothReady() && cards.a.mf.isServer && cards.b.mf.isServer)
@@ -24,7 +27,7 @@ const exp = new ExportButton(cmd.actions, {
     const audio = $('#audio').value;
     const blob = await exportComposite({
       layers: [layer(cards.a, L.ra, L.pa), layer(cards.b, L.rb, L.pb)], W: L.W, H: L.H, fps: fps(), duration: duration(),
-      bg: $('#bg').value, fontSize: Math.max(8, +$('#fontsize').value || 36), texts: activeTexts(), audioFrom: audio === 'a' ? 0 : audio === 'b' ? 1 : null,
+      bg: $('#bg').value, fontSize: Math.max(8, +$('#fontsize').value || 36), texts: texts.active(), audioFrom: audio === 'a' ? 0 : audio === 'b' ? 1 : null,
       enc, onProgress, ctl,
     });
     return [blob, $('#out').value.split('/').pop()];
@@ -277,17 +280,13 @@ function buildArgs() {
     return f.join(',');
   };
   const bg = '0x' + $('#bg').value.replace('#', '');
-  const texts = activeTexts().map(t => {
-    const pad = Math.round(t.size / 4);
-    return `drawtext=text='${dtEsc(t.text)}':font=Sans:fontsize=${t.size}:fontcolor=0x${t.color.replace('#', '')}:x=${t.x}:y=${t.y}` +
-      (t.box ? `:box=1:boxcolor=black@0.5:boxborderw=${pad}` : '');
-  });
+  const drawtexts = texts.filters();
   const fc = [
     chain(0, cards.a, L.ra, L.pa) + '[a]',
     chain(1, cards.b, L.rb, L.pb) + '[b]',
     `color=c=${bg}:s=${L.W}x${L.H}:r=${fps()}[bg]`,
     `[bg][a]overlay=${L.pa.x}:${L.pa.y}:shortest=1[t]`,
-    `[t][b]overlay=${L.pb.x}:${L.pb.y}:shortest=1` + texts.map(d => ',' + d).join('') + ',format=yuv420p[v]',
+    `[t][b]overlay=${L.pb.x}:${L.pb.y}:shortest=1` + drawtexts.map(d => ',' + d).join('') + ',format=yuv420p[v]',
   ].join(';');
   args.push('-filter_complex', fc, '-map', '[v]');
   const audio = $('#audio').value;
@@ -362,48 +361,10 @@ function drawComposite(L, srcA, srcB) {
   };
   draw(srcA, cards.a, L.ra, L.pa);
   draw(srcB, cards.b, L.rb, L.pb);
-  for (const t of activeTexts()) drawText(ctx, t);
+  texts.draw(ctx);
 }
 
-// ---------- text overlays ----------
-function activeTexts() { return state.texts.filter(t => t.text.trim()).map(t => ({ ...t, text: t.text.trim() })); }
 
-function addText() {
-  const L = layout();
-  const size = 36;
-  const t = { text: 'Text', size, color: '#ffffff', box: true, x: 24, y: 24 };
-  if (L) {
-    const r = textRect(ctx, { ...t });
-    t.x = Math.max(0, Math.round((L.W - r.w) / 2 + r.pad));
-    t.y = Math.max(0, Math.round(L.H - r.h - 24 + r.pad) - state.texts.length * Math.round(size * 1.6));
-  }
-  state.texts.push(t);
-  renderTextRows();
-  refresh();
-  $('#texts').lastElementChild?.querySelector('input[type=text]')?.select();
-}
-
-function renderTextRows() {
-  const host = $('#texts');
-  host.replaceChildren(...state.texts.map((t, i) => {
-    const bind = (input, key, parse = v => v) => {
-      input.addEventListener('input', () => { t[key] = parse(input.value); refresh(); });
-      return input;
-    };
-    const num = (key, title, w = 'w-s') => bind(el('input', { type: 'number', class: w, value: t[key], title, min: 0 }), key, v => Math.max(0, Math.round(+v || 0)));
-    return el('div', { class: 'row textrow', style: { gap: '6px' } },
-      bind(el('input', { type: 'text', class: 'w-m', value: t.text, placeholder: 'text' }), 'text'),
-      el('label', { class: 'field inline', title: 'font size' }, el('span', {}, 'size'), num('size', 'font size (px)')),
-      bind(el('input', { type: 'color', value: t.color, title: 'text color' }), 'color'),
-      el('label', { class: 'field inline' }, el('span', {}, 'x'), num('x', 'x of the text (px)')),
-      el('label', { class: 'field inline' }, el('span', {}, 'y'), num('y', 'y of the text (px)')),
-      el('label', { class: 'check', title: 'dark box behind the text' }, (() => { const c = el('input', { type: 'checkbox' }); c.checked = t.box; c.addEventListener('change', () => { t.box = c.checked; refresh(); }); return c; })(), ' box'),
-      el('button', { class: 'btn sm icon', title: 'remove this text', onclick: () => { state.texts.splice(i, 1); renderTextRows(); refresh(); } }, '✕'),
-    );
-  }));
-}
-
-$('#addText').onclick = addText;
 
 // dragging on the preview: texts in any layout, videos in custom layout
 let drag = null;
@@ -412,13 +373,11 @@ canvas.addEventListener('pointerdown', e => {
   const k = canvas.width / canvas.clientWidth;
   const x = e.offsetX * k, y = e.offsetY * k;
   const hit = (p) => x >= p.x && x < p.x + p.w && y >= p.y && y < p.y + p.h;
-  for (let i = state.texts.length - 1; i >= 0; i--) {
-    const t = state.texts[i];
-    if (t.text.trim() && hit(textRect(ctx, { ...t, text: t.text.trim() }))) {
-      drag = { text: t, x0: x, y0: y, sx: t.x, sy: t.y };
-      try { canvas.setPointerCapture(e.pointerId); } catch { /* synthetic events */ }
-      return;
-    }
+  const t = texts.hitTest(x, y);
+  if (t) {
+    drag = { text: t, x0: x, y0: y, sx: t.x, sy: t.y };
+    try { canvas.setPointerCapture(e.pointerId); } catch { /* synthetic events */ }
+    return;
   }
   if ($('#layout').value !== 'custom') return;
   const key = hit(L.pb) ? 'b' : hit(L.pa) ? 'a' : null;
@@ -433,7 +392,7 @@ canvas.addEventListener('pointermove', e => {
   if (drag.text) {
     drag.text.x = Math.max(0, Math.round(drag.sx + dx));
     drag.text.y = Math.max(0, Math.round(drag.sy + dy));
-    syncTextRows();
+    texts.syncRows();
   } else {
     custom[drag.key].x = Math.round((drag.sx + dx) / 2) * 2;
     custom[drag.key].y = Math.round((drag.sy + dy) / 2) * 2;
@@ -442,13 +401,6 @@ canvas.addEventListener('pointermove', e => {
 });
 canvas.addEventListener('pointerup', () => { drag = null; });
 
-function syncTextRows() {
-  $$('#texts .textrow').forEach((row, i) => {
-    const t = state.texts[i]; if (!t) return;
-    const nums = row.querySelectorAll('input[type=number]');
-    nums[1].value = t.x; nums[2].value = t.y;
-  });
-}
 
 // hand-off from the sync tool
 (async function restoreHandoff() {

@@ -32,6 +32,12 @@ export function fmtBytes(n) {
   return `${n < 10 && i > 0 ? n.toFixed(1) : Math.round(n)} ${u[i]}`;
 }
 
+export function fmtDate(t) {
+  if (!t) return '';
+  const d = new Date(t * 1000), p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 export function fmtTime(s, ms = true) {
   if (!isFinite(s)) return '--:--';
   const sign = s < 0 ? '-' : '';
@@ -459,11 +465,18 @@ export function pickFiles({ multiple = false, title = 'Choose video' } = {}) {
       if (files.length) { dlg.close(); resolve(files); }
     } });
     const okBtn = el('button', { class: 'btn primary', disabled: true, onclick: () => { dlg.close(); resolve([...selected.values()]); } }, 'Select');
+    let sortKey = 'name';
+    try { sortKey = localStorage.getItem('vt_sort') || 'name'; } catch { /* ignore */ }
+    const sortSel = el('select', { title: 'sort files', onchange: () => { sortKey = sortSel.value; try { localStorage.setItem('vt_sort', sortKey); } catch { /* ignore */ } renderFiles(); } },
+      el('option', { value: 'name' }, 'name A→Z'), el('option', { value: 'name_desc' }, 'name Z→A'),
+      el('option', { value: 'newest' }, 'newest first'), el('option', { value: 'oldest' }, 'oldest first'),
+      el('option', { value: 'largest' }, 'largest first'));
+    sortSel.value = sortKey;
     const dlg = el('dialog', { class: 'picker' },
       el('div', { class: 'dlg-head' }, title, el('button', { class: 'btn sm', onclick: () => { dlg.close(); resolve([]); } }, '✕')),
       el('div', { class: 'dlg-body' },
         el('div', { class: 'crumbs' }, el('button', { class: 'btn sm', title: 'up', onclick: () => current?.parent && load(current.parent) }, '↑'), pathInput,
-          el('button', { class: 'btn sm', onclick: () => load(pathInput.value) }, 'Go')),
+          el('button', { class: 'btn sm', onclick: () => load(pathInput.value) }, 'Go'), sortSel),
         el('div', { class: 'lists' }, dirList, fileList),
       ),
       el('div', { class: 'dlg-foot' },
@@ -485,9 +498,23 @@ export function pickFiles({ multiple = false, title = 'Choose video' } = {}) {
         ...current.dirs.map(d => el('div', { class: 'item', onclick: () => load(d.path) }, '📁 ', el('span', { class: 'name' }, d.name))),
       );
       if (!current.dirs.length) dirList.append(el('div', { class: 'empty' }, 'no sub-folders'));
-      fileList.replaceChildren(...current.files.map(f => {
+      renderFiles();
+    }
+    function sortedFiles() {
+      const files = [...current.files];
+      const byName = (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+      const cmp = {
+        name: byName, name_desc: (a, b) => byName(b, a),
+        newest: (a, b) => (b.mtime || 0) - (a.mtime || 0) || byName(a, b), oldest: (a, b) => (a.mtime || 0) - (b.mtime || 0) || byName(a, b),
+        largest: (a, b) => (b.size || 0) - (a.size || 0) || byName(a, b),
+      }[sortKey] || byName;
+      return files.sort(cmp);
+    }
+    function renderFiles() {
+      if (!current) return;
+      fileList.replaceChildren(...sortedFiles().map(f => {
         const item = el('div', { class: 'item' + (selected.has(f.path) ? ' selected' : '') },
-          el('span', { class: 'name' }, f.name), el('span', { class: 'size' }, fmtBytes(f.size)));
+          el('span', { class: 'name' }, f.name), el('span', { class: 'date' }, fmtDate(f.mtime)), el('span', { class: 'size' }, fmtBytes(f.size)));
         item.addEventListener('click', () => {
           const mf = new MediaFile(f);
           if (multiple) {
