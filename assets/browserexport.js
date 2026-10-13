@@ -105,7 +105,7 @@ class FrameCursor {
 }
 
 /* Several inputs composed on one canvas: the browser version of the side-by-side filter graph. */
-export async function exportComposite({ layers, W, H, fps, duration, bg = '#000000', fontSize = 36, audioFrom = null, enc, onProgress = null, ctl = null }) {
+export async function exportComposite({ layers, W, H, fps, duration, bg = '#000000', fontSize = 36, texts = [], audioFrom = null, enc, onProgress = null, ctl = null }) {
   const M = await mb();
   const opened = await Promise.all(layers.map(l => openInput(l.mf)));
   const o = enc.opts;
@@ -145,6 +145,7 @@ export async function exportComposite({ layers, W, H, fps, duration, bg = '#0000
         s.draw(ctx, r.x, r.y, r.w, r.h, d.x, d.y, d.w, d.h);
         if (L.label) drawLabel(ctx, L.label, d.x, d.y, fontSize);
       }
+      for (const tx of texts) drawText(ctx, tx);
       await videoSource.add(t, 1 / fps);
       if (i % 5 === 0) onProgress?.(i / n);
     }
@@ -165,15 +166,26 @@ export async function exportComposite({ layers, W, H, fps, duration, bg = '#0000
   return new Blob([output.target.buffer], { type: mime(o.container) });
 }
 
+/* A video label: white text in a dark box, inset by half the font size from the corner. */
 export function drawLabel(ctx, text, x, y, fs) {
-  ctx.font = `${fs}px sans-serif`;
+  drawText(ctx, { text, x: x + fs / 2, y: y + fs / 2, size: fs, color: '#ffffff', box: true });
+}
+
+/* Box rectangle of a text item in output pixels. x, y is where the text itself starts, as in ffmpeg drawtext. */
+export function textRect(ctx, { text, x, y, size }) {
+  ctx.font = `${size}px sans-serif`;
+  const pad = Math.round(size / 4), tw = ctx.measureText(text).width;
+  return { x: x - pad, y: y - pad, w: tw + pad * 2, h: size * 1.15 + pad * 2, pad };
+}
+
+export function drawText(ctx, t) {
+  if (!t.text) return;
+  const r = textRect(ctx, t);
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
-  const pad = Math.round(fs / 4), tw = ctx.measureText(text).width;
-  ctx.fillStyle = 'rgba(0,0,0,.5)';
-  ctx.fillRect(x + fs / 2 - pad, y + fs / 2 - pad, tw + pad * 2, fs * 1.15 + pad * 2);
-  ctx.fillStyle = '#fff';
-  ctx.fillText(text, x + fs / 2, y + fs / 2);
+  if (t.box) { ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(r.x, r.y, r.w, r.h); }
+  ctx.fillStyle = t.color || '#ffffff';
+  ctx.fillText(t.text, t.x, t.y);
 }
 
 function mime(container) { return container === 'mkv' ? 'video/x-matroska' : container === 'mov' ? 'video/quicktime' : 'video/mp4'; }
