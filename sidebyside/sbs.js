@@ -40,11 +40,12 @@ $('#orange').addEventListener('input', () => { state.otime = $('#orange').value 
 $('#otime').addEventListener('change', () => { const t = parseTime($('#otime').value); if (!isNaN(t)) { state.otime = clamp(t, 0, duration()); updateOutScrub(); renderPreview(); } });
 
 function makeCard(key, title) {
-  const card = { key, mf: null, info: null, start: 0, label: '' };
+  const card = { key, mf: null, info: null, start: 0, end: null, label: '' };
   const root = el('div', { class: 'card vidcard' });
   card.nameEl = el('span', { class: 'mono small' });
   card.infoEl = el('span', { class: 'small muted' });
   card.startEl = el('input', { type: 'text', class: 'mono w-s', value: '0' });
+  card.endEl = el('input', { type: 'text', class: 'mono w-s', placeholder: 'end' });
   card.labelEl = el('input', { type: 'text', class: 'w-m', placeholder: title === 'A' ? 'e.g. Ours' : 'e.g. Baseline' });
   card.cropEls = ['x', 'y', 'w', 'h'].map(k => el('input', { type: 'number', class: 'w-s', step: 2, min: 0, title: k }));
   const scrubHost = el('div');
@@ -54,8 +55,11 @@ function makeCard(key, title) {
       card.infoEl),
     scrubHost,
     el('div', { class: 'row', style: { marginTop: '8px' } },
-      el('label', { class: 'field' }, el('span', {}, 'Start at (s)'), el('div', { class: 'row', style: { gap: '4px' } }, card.startEl,
+      el('label', { class: 'field' }, el('span', {}, 'Start'), el('div', { class: 'row', style: { gap: '4px' } }, card.startEl,
         el('button', { class: 'btn sm', title: 'use the current frame as the start', onclick: () => { card.startEl.value = String(round3(card.scrub.time)); onStartChange(card); } }, 'here'))),
+      el('label', { class: 'field' }, el('span', {}, 'End'), el('div', { class: 'row', style: { gap: '4px' } }, card.endEl,
+        el('button', { class: 'btn sm', title: 'use the current frame as the end', onclick: () => { card.endEl.value = String(round3(card.scrub.time)); onEndChange(card); } }, 'here'),
+        el('button', { class: 'btn sm', title: 'clear the end (play to the end of the file)', onclick: () => { card.endEl.value = ''; onEndChange(card); } }, '✕'))),
       el('label', { class: 'field' }, el('span', {}, 'Crop x, y, w, h'), el('div', { class: 'row', style: { gap: '4px' } }, card.cropEls,
         el('button', { class: 'btn sm', onclick: () => card.crop.reset() }, 'full'))),
       el('label', { class: 'field' }, el('span', {}, 'Label'), card.labelEl),
@@ -64,6 +68,7 @@ function makeCard(key, title) {
   card.scrub = new Scrubber(scrubHost, { width: 960 });
   card.crop = new CropBox(card.scrub.wrap, { onChange: r => { fillCrop(card, r); refresh(); } });
   card.startEl.addEventListener('change', () => onStartChange(card));
+  card.endEl.addEventListener('change', () => onEndChange(card));
   card.labelEl.addEventListener('input', () => { card.label = card.labelEl.value; refresh(); });
   card.cropEls.forEach(i => i.addEventListener('change', () => card.crop.setRect({ x: +card.cropEls[0].value, y: +card.cropEls[1].value, w: +card.cropEls[2].value, h: +card.cropEls[3].value })));
   $('#cards').append(root);
@@ -74,13 +79,24 @@ function onStartChange(card) {
   const t = parseTime(card.startEl.value);
   card.start = isNaN(t) ? 0 : Math.max(0, t);
   card.startEl.value = String(round3(card.start));
+  if (card.end != null && card.end <= card.start) { card.end = null; card.endEl.value = ''; }
   refresh();
 }
+
+function onEndChange(card) {
+  const t = parseTime(card.endEl.value);
+  card.end = isNaN(t) || t <= card.start ? null : t;
+  card.endEl.value = card.end == null ? '' : String(round3(card.end));
+  refresh();
+}
+
+function cardEnd(card) { return Math.min(card.end ?? Infinity, card.info?.duration ?? Infinity); }
 
 function fillCrop(card, r) { if (r) [r.x, r.y, r.w, r.h].forEach((v, i) => { card.cropEls[i].value = v; }); }
 
 async function loadCard(card, mf, { start = null } = {}) {
   card.mf = mf; card.info = null;
+  card.end = null; card.endEl.value = '';
   card.nameEl.textContent = mf.name;
   card.infoEl.textContent = '';
   card.crop.show(false);
@@ -163,7 +179,7 @@ function onLayoutChange() {
 
 function autoDuration() {
   if (!bothReady()) return 0;
-  return Math.max(0, Math.min(cards.a.info.duration - cards.a.start, cards.b.info.duration - cards.b.start));
+  return Math.max(0, Math.min(cardEnd(cards.a) - cards.a.start, cardEnd(cards.b) - cards.b.start));
 }
 function duration() { return +$('#dur').value || autoDuration(); }
 function fps() { return +$('#fps').value || Math.max(cards.a.info?.video?.fps || 0, cards.b.info?.video?.fps || 0) || 30; }
@@ -218,6 +234,7 @@ function refresh() {
   const L = layout();
   $('#outsize').textContent = L ? `Output ${L.W}×${L.H} @ ${fps()} fps · ${fmtTime(duration(), false)} long (A from ${fmtTime(cards.a.start)}, B from ${fmtTime(cards.b.start)})` : 'Choose two videos.';
   if ($('#layout').value === 'custom' && L) writeCustomInputs();
+  for (const c of [cards.a, cards.b]) if (c.info) c.scrub.setRange(c.start, Math.min(c.start + duration(), cardEnd(c)));
   updateOutScrub();
   cmd.refresh();
   exp.enabled = !!L;

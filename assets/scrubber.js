@@ -22,7 +22,10 @@ export class Scrubber {
       this.seek(t);
     });
     const step = n => el('button', { class: 'btn sm', title: `${n > 0 ? '+' : ''}${n} frame`, onclick: () => this.step(n) }, n < 0 ? (n === -1 ? '‹' : '«') : (n === 1 ? '›' : '»'));
-    this.controls = el('div', { class: 'controls' }, step(-10), step(-1), this.timeInput, step(1), step(10), this.range, this.timeLabel);
+    this.band = el('div', { class: 'range-band hidden' }, el('span', { class: 'mark start' }), el('span', { class: 'mark end' }));
+    this.rangeWrap = el('div', { class: 'range-wrap' }, this.band, this.range);
+    this.controls = el('div', { class: 'controls' }, step(-10), step(-1), this.timeInput, step(1), step(10), this.rangeWrap, this.timeLabel);
+    this._range = null;
     this.root = el('div', { class: 'scrubber' }, this.wrap, showControls && this.controls);
     container.append(this.root);
     this._load = debounce(() => this._loadFrame(), 120);
@@ -41,6 +44,7 @@ export class Scrubber {
     } catch (e) { toast(`Cannot read ${mf.name}: ${e.message}`, true); this.wrap.classList.remove('loading'); return null; }
     this.fps = this.info.video?.fps || 30;
     this.range.disabled = false;
+    this._renderRange();
     this.seek(time, { immediate: true });
     return this.info;
   }
@@ -56,6 +60,23 @@ export class Scrubber {
   }
 
   step(frames) { this.seek(this.time + frames / this.fps); }
+
+  /* Highlights [start, end] on the slider. Pass null to hide. */
+  setRange(start, end) {
+    this._range = start == null ? null : { start, end };
+    this._renderRange();
+  }
+
+  _renderRange() {
+    const r = this._range;
+    if (!r || !this.duration) { this.band.classList.add('hidden'); return; }
+    const a = clamp(r.start / this.duration, 0, 1), b = clamp((r.end ?? this.duration) / this.duration, 0, 1);
+    this.band.classList.remove('hidden');
+    this.band.style.left = `${a * 100}%`;
+    this.band.style.width = `${Math.max(0, b - a) * 100}%`;
+    this.band.title = `${fmtTime(r.start)} – ${fmtTime(r.end ?? this.duration)}`;
+    this.band.classList.toggle('narrow', (b - a) * this.rangeWrap.clientWidth < 60);
+  }
 
   async _loadFrame() {
     if (!this.mf) return;

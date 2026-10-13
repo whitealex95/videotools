@@ -132,9 +132,17 @@ dialog .dlg-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 
 .cropbox .grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,.35) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.35) 1px, transparent 1px); background-size: 33.33% 33.33%; pointer-events: none; }
 
 .scrubber { display: flex; flex-direction: column; gap: 6px; }
-.scrubber .controls { display: flex; align-items: center; gap: 6px; }
+.scrubber .controls { display: flex; align-items: center; gap: 6px; margin-top: 12px; }
 .scrubber .time { font-family: var(--mono); font-size: 12px; min-width: 150px; }
 .scrubber input[type=range] { flex: 1; }
+.range-wrap { position: relative; flex: 1; display: flex; align-items: center; min-width: 0; }
+.range-wrap input[type=range] { width: 100%; position: relative; z-index: 1; }
+.range-band { position: absolute; top: 50%; height: 16px; transform: translateY(-50%); background: rgba(79, 140, 255, .28); border-radius: 3px; pointer-events: none; }
+.range-band .mark { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--accent); }
+.range-band .mark.start { left: -1px; } .range-band .mark.end { right: -1px; }
+.range-band .mark::after { position: absolute; top: -13px; font-size: 9px; color: var(--accent); font-weight: 600; letter-spacing: .02em; }
+.range-band .mark.start::after { content: "START"; left: 0; } .range-band .mark.end::after { content: "END"; right: 0; }
+.range-band.narrow .mark.end::after { content: none; }
 
 .stage { display: flex; gap: 6px; background: #000; border-radius: 8px; overflow: hidden; position: relative; justify-content: center; align-items: center; min-height: 240px; }
 .stage video { max-width: 100%; max-height: 70vh; display: block; background: #000; }

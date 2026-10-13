@@ -76,6 +76,8 @@ function refresh() {
   if (state.info && !crop.isFull() && !enc.needsVideoEncode(state.info, { hasFilters: true })) {
     note.textContent = 'Video mode is "copy", so the crop cannot be applied. Choose "always re-encode".';
   } else note.textContent = '';
+  const s = trimStart() || 0, d = trimDuration();
+  scrub.setRange(s || d != null ? s : null, d != null ? s + d : null);
   cmd.refresh();
   exp.enabled = !!state.info;
 }
