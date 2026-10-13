@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sync · videotools</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<main class="page">
+  <div class="page-head"><h1>Sync</h1><span class="muted">find the time offset between two recordings</span></div>
+
+  <div class="card tight">
+    <div class="row between">
+      <div class="row">
+        <b>A</b><button id="pickA" class="btn primary sm">Choose…</button><span id="nameA" class="mono small"></span>
+        <b style="margin-left:14px">B</b><button id="pickB" class="btn primary sm">Choose…</button><span id="nameB" class="mono small"></span>
+      </div>
+      <div class="row">
+        <label class="field inline"><span>View</span><select id="view"><option value="side">side by side</option><option value="overlay">overlay</option><option value="a">A only</option><option value="b">B only</option></select></label>
+        <label class="field inline" id="opacityField"><span>B opacity</span><input type="range" id="opacity" min="0" max="1" step="0.05" value="0.5" style="width:100px"></label>
+        <label class="field inline"><span>Speed</span><select id="rate"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label>
+        <label class="check"><input type="checkbox" id="mute" checked> mute</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="stage side" id="stage">
+    <video id="vA" playsinline muted></video>
+    <video id="vB" playsinline muted></video>
+    <div class="notice hidden" id="noticeA"></div>
+    <div class="notice hidden" id="noticeB"></div>
+  </div>
+
+  <div class="card tight" style="margin-top:10px">
+    <div class="row">
+      <button id="play" class="btn primary" title="space">▶</button>
+      <button class="btn sm" data-step="-10" title="shift+←">«</button><button class="btn sm" data-step="-1" title="←">‹</button>
+      <button class="btn sm" data-step="1" title="→">›</button><button class="btn sm" data-step="10" title="shift+→">»</button>
+      <span class="mono small" id="timeA" style="min-width:110px">A 0:00.000</span>
+      <input type="range" id="seek" min="0" max="10000" value="0" style="flex:1">
+      <span class="mono small muted" id="durA"></span>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <span class="small muted">Offset B − A</span>
+      <button class="btn sm" data-off="-1f" title="[">−1 frame</button><button class="btn sm" data-off="-0.1">−100 ms</button><button class="btn sm" data-off="-0.01" title=",">−10 ms</button>
+      <input type="text" id="offset" class="mono w-s" value="0.000" title="seconds">
+      <button class="btn sm" data-off="0.01" title=".">+10 ms</button><button class="btn sm" data-off="0.1">+100 ms</button><button class="btn sm" data-off="1f" title="]">+1 frame</button>
+      <input type="range" id="offsetRange" min="-10" max="10" step="0.01" value="0" style="width:220px" title="coarse offset, ±10 s">
+      <span class="mono small" id="timeB" style="min-width:110px">B 0:00.000</span>
+      <label class="check" style="margin-left:auto"><input type="checkbox" id="unlink"> scrub B separately</label>
+    </div>
+    <div class="row hidden" id="rowB" style="margin-top:8px">
+      <span class="small muted">B time</span>
+      <input type="range" id="seekB" min="0" max="10000" value="0" style="flex:1">
+      <button class="btn sm" id="setFromCurrent" title="offset = B time − A time">Set offset from current positions</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row between">
+      <div class="small muted">Keys: <kbd>space</kbd> play/pause · <kbd>←</kbd> <kbd>→</kbd> one frame (<kbd>shift</kbd> ten) · <kbd>[</kbd> <kbd>]</kbd> offset ±1 frame · <kbd>,</kbd> <kbd>.</kbd> offset ±10 ms · <kbd>1</kbd>–<kbd>4</kbd> view · <kbd>o</kbd> swap A/B in overlay</div>
+      <div class="row"><span class="small muted" id="handoffInfo"></span><button id="toSbs" class="btn primary" disabled>Use in side by side →</button></div>
+    </div>
+    <p class="small muted" style="margin:8px 0 0">Tip: find a sharp event (a clap, a foot touching the ground, a light turning on). Step frame by frame in A until it happens, then adjust the offset until B shows the same moment. The overlay view with 50% opacity makes small differences easy to see.</p>
+  </div>
+</main>
+<script type="module" src="./sync.js"></script>
+</body>
+</html>

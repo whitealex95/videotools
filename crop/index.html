@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crop · videotools</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<main class="page">
+  <div class="page-head"><h1>Crop</h1><span class="muted">cut out a region, optionally trim in time</span></div>
+  <div class="grid-sb">
+    <div class="card">
+      <div class="row between" style="margin-bottom:10px">
+        <div class="row"><button id="pick" class="btn primary">Choose video…</button><span id="fname" class="mono small"></span></div>
+        <span id="finfo" class="small muted"></span>
+      </div>
+      <div id="scrub"></div>
+      <div class="small muted" style="margin-top:8px">Drag on the frame to draw a box. Drag inside the box to move it, drag a handle to resize. Values snap to even pixels (required by most encoders).</div>
+    </div>
+    <div class="stack">
+      <div class="card">
+        <h2>Region</h2>
+        <div class="row">
+          <label class="field"><span>X</span><input type="number" id="cx" class="w-s" step="2" min="0"></label>
+          <label class="field"><span>Y</span><input type="number" id="cy" class="w-s" step="2" min="0"></label>
+          <label class="field"><span>W</span><input type="number" id="cw" class="w-s" step="2" min="2"></label>
+          <label class="field"><span>H</span><input type="number" id="ch" class="w-s" step="2" min="2"></label>
+          <label class="field"><span>Aspect</span>
+            <select id="aspect"><option value="">free</option><option value="16:9">16:9</option><option value="4:3">4:3</option><option value="1:1">1:1</option><option value="9:16">9:16</option><option value="3:4">3:4</option><option value="21:9">21:9</option></select>
+          </label>
+          <button id="reset" class="btn sm" style="align-self:flex-end">Full frame</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Trim</h2>
+        <div class="row">
+          <label class="field"><span>Start</span><div class="row" style="gap:4px"><input type="text" id="tstart" class="mono w-s" placeholder="0:00"><button class="btn sm" id="setstart" title="use the current frame">here</button></div></label>
+          <label class="field"><span>End</span><div class="row" style="gap:4px"><input type="text" id="tend" class="mono w-s" placeholder="end"><button class="btn sm" id="setend" title="use the current frame">here</button></div></label>
+          <button id="cleartrim" class="btn sm" style="align-self:flex-end">Clear</button>
+        </div>
+      </div>
+      <div class="card"><h2>Encoding</h2><div id="encode"></div><div id="encnote" class="small" style="color:var(--warn);margin-top:6px"></div></div>
+      <div class="card"><h2>Output</h2><input type="text" id="out" class="mono w-full"></div>
+    </div>
+  </div>
+  <div class="card"><h2>Command</h2><div id="cmd"></div></div>
+</main>
+<script type="module" src="./crop.js"></script>
+</body>
+</html>

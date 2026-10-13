@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Convert · videotools</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<main class="page">
+  <div class="page-head"><h1>Convert</h1><span class="muted">batch format and filename conversion</span></div>
+
+  <div class="card">
+    <div class="row between" style="margin-bottom:10px">
+      <div class="row">
+        <button id="add" class="btn primary">Add files…</button>
+        <button id="clear" class="btn">Clear</button>
+        <span id="count" class="muted small"></span>
+      </div>
+      <div id="dropzone" class="dropzone small" style="padding:8px 14px">or drop local files here</div>
+    </div>
+    <table class="table" id="files">
+      <thead><tr><th>#</th><th>Input</th><th>Info</th><th style="width:140px">Status</th><th>Output name</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div id="empty" class="muted small" style="padding:8px 0">No files yet.</div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h2>Output</h2>
+      <div class="stack">
+        <label class="check"><input type="radio" name="outmode" value="same" checked> same folder as the input</label>
+        <label class="check"><input type="radio" name="outmode" value="dir"> folder: <input type="text" id="outdir" class="mono" style="flex:1"></label>
+        <label class="field"><span>Name pattern</span><input type="text" id="pattern" value="{name}" class="mono"></label>
+        <div class="row">
+          <label class="field"><span>Find</span><input type="text" id="find" class="mono w-m"></label>
+          <label class="field"><span>Replace</span><input type="text" id="replace" class="mono w-m"></label>
+          <label class="check"><input type="checkbox" id="regex"> regex</label>
+        </div>
+        <div class="small muted">Tokens: <code>{name}</code> original name without extension (after find/replace), <code>{n}</code> <code>{nn}</code> <code>{nnn}</code> running number, <code>{date}</code> file date as YYYYMMDD, <code>{ext}</code> original extension. The new extension follows the container.</div>
+        <div id="warn" class="small" style="color:var(--warn)"></div>
+      </div>
+    </div>
+    <div class="card"><h2>Encoding</h2><div id="encode"></div></div>
+  </div>
+
+  <div class="card"><h2>Command</h2><div id="cmd"></div></div>
+</main>
+<script type="module" src="./convert.js"></script>
+</body>
+</html>

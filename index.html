@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>videotools</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<main class="page">
+  <div class="page-head"><h1>videotools</h1><span class="muted">small ffmpeg helpers for research videos</span></div>
+  <div class="cards">
+    <a class="card" href="convert/"><h2>Convert</h2><p class="muted">Batch re-encode many files to web-safe MP4 (H.264 + AAC, for Notion, Slack, GitHub). Rename with patterns, resize, HDR → SDR, GPU encoding.</p></a>
+    <a class="card" href="crop/"><h2>Crop</h2><p class="muted">Draw a box on a frame to cut out a region. Optional time trim. Even-pixel snapping and aspect presets.</p></a>
+    <a class="card" href="sidebyside/"><h2>Side by side</h2><p class="muted">Crop, resize and place two videos next to each other (or anywhere on a canvas), with start offsets and labels.</p></a>
+    <a class="card" href="sync/"><h2>Sync</h2><p class="muted">Play two recordings together and tune the time offset frame by frame. Send the result to Side by side.</p></a>
+  </div>
+
+  <div class="card">
+    <h2>How it works</h2>
+    <p>Every tool builds an ffmpeg command. When the small job server is running on the machine that holds the videos, the page sends the command there and shows progress. Without the server, you copy the command and run it in a terminal.</p>
+    <h3>Start the server (on the machine with the videos)</h3>
+    <pre class="cmd">git clone https://github.com/whitealex95/videotools ~/Projects/videotools
+python3 ~/Projects/videotools/server/videotools_server.py --root ~/Downloads --root ~/Projects</pre>
+    <p class="small muted" style="margin-top:8px">Needs only Python 3 and ffmpeg. The server listens on <code>localhost:8765</code> and this page connects to it automatically.</p>
+    <h3>Use it from another machine</h3>
+    <pre class="cmd">ssh -N -L 8765:localhost:8765 cc-thunderbluff</pre>
+    <p class="small muted" style="margin-top:8px">The tunnel makes the remote server look like <code>localhost:8765</code>, so this page works unchanged. Or start the server with <code>--host 0.0.0.0</code> and open <code>http://&lt;ip&gt;:8765/</code> directly (it serves this same UI and prints a token).</p>
+  </div>
+</main>
+<script type="module">
+import { initPage } from './assets/common.js';
+initPage({ root: './', active: '' });
+</script>
+</body>
+</html>

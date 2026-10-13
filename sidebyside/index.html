@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Side by side · videotools</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<main class="page">
+  <div class="page-head"><h1>Side by side</h1><span class="muted">crop, place and combine two videos</span><span id="handoff" class="small" style="color:var(--ok)"></span></div>
+
+  <div class="grid-2" id="cards"></div>
+
+  <div class="grid-sb">
+    <div class="card">
+      <h2>Output preview</h2>
+      <canvas id="canvas" class="sbs-canvas" width="640" height="200"></canvas>
+      <div class="scrubber" style="margin-top:8px">
+        <div class="controls">
+          <span class="small muted">Comparison time</span>
+          <input type="text" id="otime" class="mono w-s" value="0:00.000">
+          <input type="range" id="orange" min="0" max="1000" value="0">
+          <span class="time muted" id="odur"></span>
+        </div>
+      </div>
+      <div id="dragHint" class="small muted hidden" style="margin-top:6px">Custom layout: drag a video on the preview to move it. Use the W fields to resize.</div>
+    </div>
+    <div class="stack">
+      <div class="card">
+        <h2>Layout</h2>
+        <div class="stack">
+          <div class="row">
+            <label class="field"><span>Arrange</span><select id="layout"><option value="h">horizontal</option><option value="v">vertical</option><option value="custom">custom</option></select></label>
+            <label class="field" id="sizeField"><span id="sizeLabel">Height</span><input type="number" id="size" class="w-s" placeholder="auto" step="2"></label>
+            <label class="field"><span>Gap</span><input type="number" id="gap" class="w-s" value="0" step="2" min="0"></label>
+            <label class="field"><span>Background</span><input type="color" id="bg" value="#000000"></label>
+          </div>
+          <div class="row hidden" id="customRow">
+            <label class="field"><span>Canvas W</span><input type="number" id="cW" class="w-s" step="2"></label>
+            <label class="field"><span>Canvas H</span><input type="number" id="cH" class="w-s" step="2"></label>
+            <label class="field"><span>A x</span><input type="number" id="aX" class="w-s" step="2"></label>
+            <label class="field"><span>A y</span><input type="number" id="aY" class="w-s" step="2"></label>
+            <label class="field"><span>A w</span><input type="number" id="aW" class="w-s" step="2"></label>
+            <label class="field"><span>B x</span><input type="number" id="bX" class="w-s" step="2"></label>
+            <label class="field"><span>B y</span><input type="number" id="bY" class="w-s" step="2"></label>
+            <label class="field"><span>B w</span><input type="number" id="bW" class="w-s" step="2"></label>
+          </div>
+          <div class="row">
+            <label class="field"><span>Duration (s)</span><input type="number" id="dur" class="w-s" placeholder="auto" step="0.1" min="0"></label>
+            <label class="field"><span>FPS</span><input type="number" id="fps" class="w-s" placeholder="auto" min="1"></label>
+            <label class="field"><span>Audio</span><select id="audio"><option value="none">none</option><option value="a">from A</option><option value="b">from B</option></select></label>
+            <label class="check" style="align-self:flex-end"><input type="checkbox" id="labels"> labels</label>
+            <label class="field"><span>Label size</span><input type="number" id="fontsize" class="w-s" value="36" min="8"></label>
+          </div>
+          <div id="outsize" class="small muted"></div>
+        </div>
+      </div>
+      <div class="card"><h2>Encoding</h2><div id="encode"></div></div>
+      <div class="card"><h2>Output</h2><input type="text" id="out" class="mono w-full"></div>
+    </div>
+  </div>
+  <div class="card"><h2>Command</h2><div id="cmd"></div></div>
+</main>
+<script type="module" src="./sbs.js"></script>
+</body>
+</html>
