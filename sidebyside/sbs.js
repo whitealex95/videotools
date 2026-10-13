@@ -2,6 +2,7 @@ import { $, el, initPage, pickFiles, codecSummary, fmtTime, parseTime, CommandPa
 import { EncodePanel, fmtSec } from '../assets/encode.js';
 import { Scrubber } from '../assets/scrubber.js';
 import { CropBox } from '../assets/cropbox.js';
+import { ExportButton, exportComposite } from '../assets/browserexport.js';
 
 initPage({ root: '../', active: 'sidebyside' });
 
@@ -15,6 +16,21 @@ const cmd = new CommandPanel($('#cmd'));
 cmd.getCommands = () => (bothReady() ? [buildArgs()] : []);
 cmd.getJobs = () => (bothReady() && cards.a.mf.isServer && cards.b.mf.isServer)
   ? [{ label: `side by side: ${cards.a.mf.name} + ${cards.b.mf.name}`, args: buildArgs(), output: $('#out').value, duration: duration() }] : [];
+const exp = new ExportButton(cmd.actions, {
+  run: async ({ onProgress, ctl }) => {
+    const L = layout();
+    const labelsOn = $('#labels').checked;
+    const layer = (card, r, d) => ({ mf: card.mf, start: card.start, crop: r, dest: d, label: labelsOn ? card.label.trim() : '' });
+    const audio = $('#audio').value;
+    const blob = await exportComposite({
+      layers: [layer(cards.a, L.ra, L.pa), layer(cards.b, L.rb, L.pb)], W: L.W, H: L.H, fps: fps(), duration: duration(),
+      bg: $('#bg').value, fontSize: Math.max(8, +$('#fontsize').value || 36), audioFrom: audio === 'a' ? 0 : audio === 'b' ? 1 : null,
+      enc, onProgress, ctl,
+    });
+    return [blob, $('#out').value.split('/').pop()];
+  },
+});
+exp.enabled = false;
 
 for (const id of ['layout', 'size', 'gap', 'bg', 'cW', 'cH', 'aX', 'aY', 'aW', 'bX', 'bY', 'bW', 'dur', 'fps', 'audio', 'labels', 'fontsize']) {
   $('#' + id).addEventListener('input', ev => { if (id === 'layout') onLayoutChange(); else if (['cW', 'cH', 'aX', 'aY', 'aW', 'bX', 'bY', 'bW'].includes(id)) readCustomInputs(); refresh(); });
@@ -204,6 +220,7 @@ function refresh() {
   if ($('#layout').value === 'custom' && L) writeCustomInputs();
   updateOutScrub();
   cmd.refresh();
+  exp.enabled = !!L;
   renderPreview();
 }
 

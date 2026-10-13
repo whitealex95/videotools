@@ -2,6 +2,7 @@ import { $, initPage, pickFiles, codecSummary, fmtTime, parseTime, CommandPanel,
 import { EncodePanel } from '../assets/encode.js';
 import { Scrubber } from '../assets/scrubber.js';
 import { CropBox, cropFilter } from '../assets/cropbox.js';
+import { ExportButton, exportSingle } from '../assets/browserexport.js';
 
 initPage({ root: '../', active: 'crop' });
 
@@ -12,6 +13,13 @@ const enc = new EncodePanel($('#encode'), { onChange: () => { syncExt(); refresh
 const cmd = new CommandPanel($('#cmd'));
 cmd.getCommands = () => state.info ? [buildArgs()] : [];
 cmd.getJobs = () => state.info && state.mf.isServer ? [{ label: `crop ${state.mf.name}`, args: buildArgs(), output: $('#out').value, duration: trimDuration() ?? state.info.duration }] : [];
+const exp = new ExportButton(cmd.actions, {
+  run: async ({ onProgress, ctl }) => {
+    const blob = await exportSingle({ mf: state.mf, enc, crop: crop.isFull() ? null : crop.getRect(), ss: trimStart(), duration: trimDuration(), onProgress, ctl });
+    return [blob, $('#out').value.split('/').pop()];
+  },
+});
+exp.enabled = false;
 
 $('#pick').onclick = async () => { const [mf] = await pickFiles({ title: 'Choose a video to crop' }); if (mf) load(mf); };
 $('#reset').onclick = () => crop.reset();
@@ -69,4 +77,5 @@ function refresh() {
     note.textContent = 'Video mode is "copy", so the crop cannot be applied. Choose "always re-encode".';
   } else note.textContent = '';
   cmd.refresh();
+  exp.enabled = !!state.info;
 }

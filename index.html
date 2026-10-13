@@ -18,7 +18,12 @@
 
   <div class="card">
     <h2>How it works</h2>
-    <p>Every tool builds an ffmpeg command. When the small job server is running on the machine that holds the videos, the page sends the command there and shows progress. Without the server, you copy the command and run it in a terminal.</p>
+    <p>Each tool has three ways to produce the result:</p>
+    <ul class="small" style="margin:0 0 10px 18px; line-height:1.7">
+      <li><b>Export in browser</b>: decodes and encodes inside the browser (WebCodecs) and downloads the file. No server, no ffmpeg. The browser must be able to decode the input, which is true for most H.264 files but not for 10-bit HDR HEVC from iPhones.</li>
+      <li><b>Run on server</b>: when the small job server runs on the machine that holds the videos, the page sends the ffmpeg command there and shows progress. Handles every format, uses the GPU.</li>
+      <li><b>Copy command</b>: the ffmpeg command is always shown, so you can run it yourself.</li>
+    </ul>
     <h3>Start the server (on the machine with the videos)</h3>
     <pre class="cmd">git clone https://github.com/whitealex95/videotools ~/Projects/videotools
 python3 ~/Projects/videotools/server/videotools_server.py --root ~/Downloads --root ~/Projects</pre>

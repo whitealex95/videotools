@@ -523,8 +523,8 @@ export class CommandPanel {
     this.runBtn = el('button', { class: 'btn primary', onclick: () => this.run() }, runLabel);
     this.copyBtn = el('button', { class: 'btn', onclick: () => copyText(this.text()) }, scriptMode ? 'Copy script' : 'Copy command');
     this.note = el('span', { class: 'small muted' });
-    container.append(el('div', { class: 'cmdpanel' },
-      el('div', { class: 'actions' }, this.runBtn, this.copyBtn, this.note), this.pre));
+    this.actions = el('div', { class: 'actions' }, this.runBtn, this.copyBtn, this.note);
+    container.append(el('div', { class: 'cmdpanel' }, this.actions, this.pre));
     document.addEventListener('vt:server', () => this.refresh());
     this.refresh();
   }

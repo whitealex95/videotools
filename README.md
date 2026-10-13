@@ -11,7 +11,11 @@ Live page: https://jhkim.me/videotools/
 | **Side by side** | Crop, resize and place two videos on one canvas, with start offsets and labels. |
 | **Sync** | Play two recordings together and tune the offset frame by frame. Sends the result to Side by side. |
 
-Every tool builds an ffmpeg command. With the job server running on the machine that holds the videos, the page runs the command there and shows progress. Without it, you copy the command and run it yourself.
+Each tool can produce the result in three ways:
+
+1. **Export in browser.** Decodes and encodes inside the browser with WebCodecs (through the [mediabunny](https://mediabunny.dev) library) and downloads the file. No server, no ffmpeg. Works for local files and for server files. Limits: the browser must be able to decode the input (Chrome on Linux cannot decode 10-bit HDR HEVC from iPhones, for example), audio is AAC where the browser has an encoder and Opus otherwise, and HDR to SDR colors are the browser's. Chrome asks once for permission to download several files when you export a batch.
+2. **Run on server.** With the job server running on the machine that holds the videos, the page sends the ffmpeg command there and shows progress. Handles every format and uses NVENC.
+3. **Copy command.** Every tool always shows the ffmpeg command, which you can run yourself.
 
 ## Job server
 
@@ -57,6 +61,7 @@ Plain HTML + ES modules, no build step. Push to `main` and GitHub Pages deploys 
 index.html            landing page
 assets/common.js      server client, file picker, jobs drawer, command panel
 assets/encode.js      encoder options + ffmpeg argument builder
+assets/browserexport.js  WebCodecs export (mediabunny): single-file convert/crop and canvas compositing
 assets/scrubber.js    frame preview with time slider
 assets/cropbox.js     draggable crop rectangle
 convert/ crop/ sidebyside/ sync/   one folder per tool

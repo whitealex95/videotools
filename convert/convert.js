@@ -1,5 +1,6 @@
 import { $, $$, el, initPage, pickFiles, makeDropZone, fmtBytes, fmtTime, codecSummary, CommandPanel, jobsStore, server, debounce } from '../assets/common.js';
 import { EncodePanel } from '../assets/encode.js';
+import { ExportButton, exportSingle, downloadBlob } from '../assets/browserexport.js';
 
 initPage({ root: '../', active: 'convert' });
 
@@ -16,6 +17,34 @@ cmd.getPrelude = () => {
 cmd.getJobs = () => ready().filter(r => r.mf.isServer).map(r => ({
   label: r.mf.name, args: buildArgs(r), output: outPath(r), duration: r.info.duration, meta: { id: r.mf.id },
 }));
+const exp = new ExportButton(cmd.actions, {
+  label: 'Export all in browser',
+  run: async ({ onProgress, ctl }) => {
+    const list = ready();
+    let done = 0, failed = 0;
+    for (const r of list) {
+      if (ctl.cancelled) break;
+      r.browserStatus = 'exporting';
+      refresh();
+      const sub = {};
+      ctl.cancel = () => { ctl.cancelled = true; sub.cancel?.(); };
+      try {
+        const blob = await exportSingle({ mf: r.mf, enc, onProgress: p => onProgress((done + p) / list.length, `${r.mf.name}`), ctl: sub });
+        downloadBlob(blob, outName(r));
+        r.browserStatus = 'downloaded';
+      } catch (e) {
+        r.browserStatus = `failed: ${e.message}`;
+        failed++;
+      }
+      done++;
+      refresh();
+    }
+    onProgress(1);
+    return `${done - failed} of ${list.length} downloaded${failed ? `, ${failed} failed` : ''}`;
+  },
+});
+exp.enabled = false;
+
 cmd.onRun = (ids, jobs) => {
   jobs.forEach((j, i) => { const r = rows.find(x => x.mf.id === j.meta.id); if (r) { r.jobId = ids[i]; r.exists = false; } });
   refresh();
@@ -85,6 +114,7 @@ function statusCell(r) {
       el('div', { class: `progress ${job.status}` }, el('i', { style: { width: `${job.status === 'done' ? 100 : pct}%` } })));
   }
   const badges = [];
+  if (r.browserStatus) badges.push(el('span', { class: `badge ${r.browserStatus === 'downloaded' ? 'ok' : r.browserStatus.startsWith('failed') ? 'err' : 'accent'}`, title: r.browserStatus }, r.browserStatus.split(':')[0]));
   const willCopy = !enc.needsVideoEncode(r.info);
   badges.push(willCopy ? el('span', { class: 'badge ok', title: 'video stream is copied, no quality loss' }, 'copy') : el('span', { class: 'badge accent' }, 're-encode'));
   if (r.info.video?.hdr) badges.push(el('span', { class: 'badge warn' }, 'HDR'));
@@ -107,6 +137,7 @@ function refresh() {
   )));
   $('#warn').textContent = dups.size ? 'Two or more files would get the same output name. Add {n} to the pattern.' : '';
   cmd.refresh();
+  exp.enabled = ready().length > 0;
   checkExists();
 }
 
