@@ -1,4 +1,4 @@
-import { $, initPage, pickFiles, codecSummary, fmtTime, parseTime, CommandPanel, outputPath, toast } from '../assets/common.js';
+import { $, initPage, pickFiles, codecSummary, fmtTime, parseTime, CommandPanel, outputPath, toast, frameStepButtons, arrowKeyStep, clamp } from '../assets/common.js';
 import { EncodePanel } from '../assets/encode.js';
 import { Scrubber } from '../assets/scrubber.js';
 import { CropBox, cropFilter } from '../assets/cropbox.js';
@@ -31,6 +31,20 @@ $('#setstart').onclick = () => { $('#tstart').value = fmtTime(scrub.time); refre
 $('#setend').onclick = () => { $('#tend').value = fmtTime(scrub.time); refresh(); };
 $('#cleartrim').onclick = () => { $('#tstart').value = ''; $('#tend').value = ''; refresh(); };
 for (const id of ['tstart', 'tend']) $('#' + id).addEventListener('change', refresh);
+$('#setstart').before(...frameStepButtons(n => nudgeTrim('tstart', n), { title: 'start' }));
+$('#setend').before(...frameStepButtons(n => nudgeTrim('tend', n), { title: 'end' }));
+arrowKeyStep($('#tstart'), n => nudgeTrim('tstart', n));
+arrowKeyStep($('#tend'), n => nudgeTrim('tend', n));
+
+function nudgeTrim(id, frames) {
+  if (!state.info) return;
+  const cur = parseTime($('#' + id).value);
+  const base = isNaN(cur) ? (id === 'tstart' ? 0 : state.info.duration) : cur;
+  const t = clamp(base + frames / scrub.fps, 0, state.info.duration);
+  $('#' + id).value = fmtTime(t);
+  scrub.seek(t);
+  refresh();
+}
 $('#out').addEventListener('input', () => { state.outEdited = true; refresh(); });
 
 async function load(mf) {

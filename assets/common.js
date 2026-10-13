@@ -571,3 +571,20 @@ export function outputPath(mf, suffix, ext, dir = null) {
   if (!mf.isServer) return name;
   return `${dir || mf.dir}/${name}`;
 }
+
+/* « ‹ › » buttons that call onStep(frames) with -10, -1, 1, 10. Shift-click multiplies by 10. */
+export function frameStepButtons(onStep, { title = '' } = {}) {
+  return [-10, -1, 1, 10].map(n => el('button', {
+    class: 'btn sm icon', title: `${title} ${n > 0 ? '+' : ''}${n} frame${Math.abs(n) > 1 ? 's' : ''} (shift: ×10)`.trim(),
+    onclick: e => onStep(e.shiftKey ? n * 10 : n),
+  }, n === -10 ? '«' : n === -1 ? '‹' : n === 1 ? '›' : '»'));
+}
+
+/* Arrow up/down in a time input steps by one frame, with shift by ten. */
+export function arrowKeyStep(input, onStep) {
+  input.addEventListener('keydown', e => {
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+    e.preventDefault();
+    onStep((e.key === 'ArrowUp' ? 1 : -1) * (e.shiftKey ? 10 : 1));
+  });
+}

@@ -1,4 +1,4 @@
-import { $, el, initPage, pickFiles, codecSummary, fmtTime, parseTime, CommandPanel, server, toast, MediaFile, even, clamp, debounce, loadImage, TONEMAP, round3 } from '../assets/common.js';
+import { $, el, initPage, pickFiles, codecSummary, fmtTime, parseTime, CommandPanel, server, toast, MediaFile, even, clamp, debounce, loadImage, TONEMAP, round3, frameStepButtons, arrowKeyStep } from '../assets/common.js';
 import { EncodePanel, fmtSec } from '../assets/encode.js';
 import { Scrubber } from '../assets/scrubber.js';
 import { CropBox } from '../assets/cropbox.js';
@@ -111,8 +111,10 @@ function makeCard(key, title) {
     scrubHost,
     el('div', { class: 'row', style: { marginTop: '8px' } },
       el('label', { class: 'field' }, el('span', {}, 'Start'), el('div', { class: 'row', style: { gap: '4px' } }, card.startEl,
+        frameStepButtons(n => nudge(card, 'start', n), { title: 'start' }),
         el('button', { class: 'btn sm', title: 'use the current frame as the start', onclick: () => { card.startEl.value = String(round3(card.scrub.time)); onStartChange(card); } }, 'here'))),
       el('label', { class: 'field' }, el('span', {}, 'End'), el('div', { class: 'row', style: { gap: '4px' } }, card.endEl,
+        frameStepButtons(n => nudge(card, 'end', n), { title: 'end' }),
         el('button', { class: 'btn sm', title: 'use the current frame as the end', onclick: () => { card.endEl.value = String(round3(card.scrub.time)); onEndChange(card); } }, 'here'),
         el('button', { class: 'btn sm', title: 'clear the end (play to the end of the file)', onclick: () => { card.endEl.value = ''; onEndChange(card); } }, '✕'))),
       el('label', { class: 'field' }, el('span', {}, 'Crop x, y, w, h'), el('div', { class: 'row', style: { gap: '4px' } }, card.cropEls,
@@ -125,6 +127,8 @@ function makeCard(key, title) {
   card.crop = new CropBox(card.scrub.wrap, { onChange: r => { fillCrop(card, r); refresh(); } });
   card.startEl.addEventListener('change', () => onStartChange(card));
   card.endEl.addEventListener('change', () => onEndChange(card));
+  arrowKeyStep(card.startEl, n => nudge(card, 'start', n));
+  arrowKeyStep(card.endEl, n => nudge(card, 'end', n));
   card.labelEl.addEventListener('input', () => { card.label = card.labelEl.value; refresh(); });
   card.cropEls.forEach(i => i.addEventListener('change', () => card.crop.setRect({ x: +card.cropEls[0].value, y: +card.cropEls[1].value, w: +card.cropEls[2].value, h: +card.cropEls[3].value })));
   $('#cards').append(root);
@@ -144,6 +148,17 @@ function onEndChange(card) {
   card.end = isNaN(t) || t <= card.start ? null : t;
   card.endEl.value = card.end == null ? '' : String(round3(card.end));
   refresh();
+}
+
+/* Moves start or end by a number of frames and shows that frame in the card's preview. */
+function nudge(card, which, frames) {
+  if (!card.info) return;
+  const fps = card.info.video?.fps || 30;
+  const base = which === 'start' ? card.start : (card.end ?? card.info.duration);
+  const t = round3(clamp(base + frames / fps, 0, card.info.duration));
+  if (which === 'start') { card.startEl.value = String(t); onStartChange(card); }
+  else { card.endEl.value = String(t); onEndChange(card); }
+  card.scrub.seek(which === 'start' ? card.start : (card.end ?? card.info.duration));
 }
 
 function cardEnd(card) { return Math.min(card.end ?? Infinity, card.info?.duration ?? Infinity); }
