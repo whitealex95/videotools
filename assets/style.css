@@ -137,6 +137,7 @@ dialog .dlg-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 
 .scrubber input[type=range] { flex: 1; }
 .range-wrap { position: relative; flex: 1; display: flex; align-items: center; min-width: 0; }
 .range-wrap input[type=range] { width: 100%; position: relative; z-index: 1; }
+.range-band-track { position: absolute; left: 8px; right: 8px; top: 0; bottom: 0; pointer-events: none; }
 .range-band { position: absolute; top: 50%; height: 16px; transform: translateY(-50%); background: rgba(79, 140, 255, .28); border-radius: 3px; pointer-events: none; }
 .range-band .mark { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--accent); }
 .range-band .mark.start { left: -1px; } .range-band .mark.end { right: -1px; }

@@ -23,7 +23,9 @@ export class Scrubber {
     });
     const step = n => el('button', { class: 'btn sm', title: `${n > 0 ? '+' : ''}${n} frame`, onclick: () => this.step(n) }, n < 0 ? (n === -1 ? '‹' : '«') : (n === 1 ? '›' : '»'));
     this.band = el('div', { class: 'range-band hidden' }, el('span', { class: 'mark start' }), el('span', { class: 'mark end' }));
-    this.rangeWrap = el('div', { class: 'range-wrap' }, this.band, this.range);
+    // The band lives on a track inset by half the slider thumb, so 0% and 100% line up with the thumb's end positions.
+    this.bandTrack = el('div', { class: 'range-band-track' }, this.band);
+    this.rangeWrap = el('div', { class: 'range-wrap' }, this.bandTrack, this.range);
     this.controls = el('div', { class: 'controls' }, step(-10), step(-1), this.timeInput, step(1), step(10), this.rangeWrap, this.timeLabel);
     this._range = null;
     this.root = el('div', { class: 'scrubber' }, this.wrap, showControls && this.controls);
@@ -75,7 +77,7 @@ export class Scrubber {
     this.band.style.left = `${a * 100}%`;
     this.band.style.width = `${Math.max(0, b - a) * 100}%`;
     this.band.title = `${fmtTime(r.start)} – ${fmtTime(r.end ?? this.duration)}`;
-    this.band.classList.toggle('narrow', (b - a) * this.rangeWrap.clientWidth < 60);
+    this.band.classList.toggle('narrow', (b - a) * this.bandTrack.clientWidth < 60);
   }
 
   async _loadFrame() {
